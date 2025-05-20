@@ -15,8 +15,8 @@ if (!EMAIL_USER || !EMAIL_PASS) {
 
 // Create a reusable transporter object using Gmail SMTP
 const transporter: Transporter = nodemailer.createTransport({
-  service: "gmail",
-  host: "smtp.gmail.com",
+  service: "hostinger",
+  host: "smtp.hostinger.com",
   port: 465,
   secure: true, // use SSL
   auth: {

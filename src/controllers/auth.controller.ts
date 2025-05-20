@@ -66,7 +66,7 @@ export const createUser = asyncHandler(async (req: Request, res: Response) => {
   await newUser.save();
 
   // Find the created user without password
-  const createdUser = await User.findById(newUser._id).select('-password');
+  const createdUser = await User.findById(newUser._id);
 
   if (!createdUser) {
     throw new ApiError(500, 'User not registered');
