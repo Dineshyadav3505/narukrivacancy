@@ -569,7 +569,7 @@ export const updateJobPostById = asyncHandler(
 
 export const getJobPostByName = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const postName = (req.params.postName as string).replace(/%/g, " ");
+    const postName = (req.params.postName as string).replace(/-/g, " ");
 
     // If no cache, fetch from DB
     let filter: any = { postName: { $exists: true } };
