@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.quizzesRouter = void 0;
+const express_1 = require("express");
+const quizzes_controller_1 = require("../controllers/quizzes.controller");
+const auth_middleware_1 = require("../Middleware/auth.middleware");
+const quizzesRouter = (0, express_1.Router)();
+exports.quizzesRouter = quizzesRouter;
+quizzesRouter.route('/create').post(auth_middleware_1.verifyJWT, quizzes_controller_1.createQuiz);
+quizzesRouter.route('/getAll').get(quizzes_controller_1.getQuizzes);
+quizzesRouter.route('/active').get(quizzes_controller_1.getActiveQuizzes);
+quizzesRouter.route('/:Id').get(quizzes_controller_1.getQuizById);
+quizzesRouter.route('/:Id').put(auth_middleware_1.verifyJWT, quizzes_controller_1.updateQuizById);
+quizzesRouter.route('/:Id').delete(auth_middleware_1.verifyJWT, quizzes_controller_1.deleteQuizById);
+quizzesRouter.route('/submit/:Id').post(quizzes_controller_1.submitQuiz);

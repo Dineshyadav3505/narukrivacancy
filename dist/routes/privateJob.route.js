@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.privateJobRouter = void 0;
+const express_1 = require("express");
+const privateJob_controller_1 = require("../controllers/privateJob.controller");
+const auth_middleware_1 = require("../Middleware/auth.middleware");
+exports.privateJobRouter = (0, express_1.Router)();
+exports.privateJobRouter.post('/create', auth_middleware_1.verifyJWT, privateJob_controller_1.createPrivateJob);
+exports.privateJobRouter.get('/allJob', privateJob_controller_1.getAllPrivateJob);
+exports.privateJobRouter.get('/:Id', auth_middleware_1.verifyJWT, privateJob_controller_1.getAllPrivateJobById);
+exports.privateJobRouter.put('/:Id', auth_middleware_1.verifyJWT, privateJob_controller_1.updatePrivateJobPostById);
+exports.privateJobRouter.delete('/:Id', auth_middleware_1.verifyJWT, privateJob_controller_1.deletePrivateJobPostById);

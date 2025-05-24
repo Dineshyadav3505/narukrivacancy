@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.offlinePostRouter = void 0;
+const express_1 = require("express");
+const auth_middleware_1 = require("../Middleware/auth.middleware");
+const offline_controller_1 = require("../controllers/offline.controller");
+exports.offlinePostRouter = (0, express_1.Router)();
+exports.offlinePostRouter.post('/create', auth_middleware_1.verifyJWT, offline_controller_1.createOfflineJob);
+exports.offlinePostRouter.get('/allJob', offline_controller_1.getAllOfflineJobs);
+exports.offlinePostRouter.get('/:Id', auth_middleware_1.verifyJWT, offline_controller_1.getOfflineJobById);
+exports.offlinePostRouter.put('/:Id', auth_middleware_1.verifyJWT, offline_controller_1.updateOfflineJobById);
+exports.offlinePostRouter.delete('/:Id', auth_middleware_1.verifyJWT, offline_controller_1.deleteOfflineJobById);

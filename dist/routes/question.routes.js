@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.questionRouter = void 0;
+const express_1 = require("express");
+const auth_middleware_1 = require("../Middleware/auth.middleware");
+const question_controller_1 = require("../controllers/question.controller");
+exports.questionRouter = (0, express_1.Router)();
+exports.questionRouter.post('/create', auth_middleware_1.verifyJWT, question_controller_1.createQuestion);
+exports.questionRouter.get('/random', question_controller_1.getRandomQuestion);
+exports.questionRouter.get('/allQuestion', question_controller_1.getAllQuestion);
+exports.questionRouter.delete('/:Id', auth_middleware_1.verifyJWT, question_controller_1.deletedQuestionById);
+exports.questionRouter.put('/:Id', auth_middleware_1.verifyJWT, question_controller_1.updateQuestionById);
