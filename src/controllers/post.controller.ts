@@ -887,3 +887,29 @@ export const getJobPostByName = asyncHandler(
     );
   }
 );
+
+
+export const getJobPostByName = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const postName = (req.params.postName as string).replace(/-/g, " ");
+
+    // If no cache, fetch from DB
+    let filter: any = { postName: { $exists: true } };
+    if (postName) {
+      filter.postName = postName;
+    }
+
+    const total = await JobPost.countDocuments(filter);
+    const jobPosts = await JobPost.find(filter)
+
+    res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          jobPosts,
+        },
+        'Job posts fetched successfully'
+      )
+    );
+  }
+);
