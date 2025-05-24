@@ -20,6 +20,7 @@ export const createQuestion = asyncHandler(
       questionName,
       options,
       correctOption,
+      explanation,
       marks,
       negativeMarks,
       level,
@@ -31,7 +32,11 @@ export const createQuestion = asyncHandler(
       'questionName',
       'options',
       'correctOption',
+      'explanation',
       'marks',
+      'negativeMarks',
+      'level',
+      'category',
     ];
 
     for (const field of requiredFields) {
@@ -82,6 +87,7 @@ export const createQuestion = asyncHandler(
       questionName,
       options,
       correctOption,
+      explanation,
       marks,
       negativeMarks,
       level: level || 'Easy',
@@ -196,6 +202,7 @@ export const getAllQuestion = asyncHandler(
 
 export const deletedQuestionById = asyncHandler(
   async (req: Request, res: Response) => {
+
     // Authentication
     if (!req.user || req.user.role !== 'admin') {
       throw new ApiError(
@@ -205,6 +212,7 @@ export const deletedQuestionById = asyncHandler(
     }
 
     const questionId = req.params.Id;
+
 
     const question = await QuestionModel.findByIdAndDelete(questionId);
     if (!question) {
@@ -229,7 +237,7 @@ export const updateQuestionById = asyncHandler(
 
     const questionId = req.params.Id;
 
-    const question = await QuestionModel.findByIdAndUpdate(questionId);
+    const question = await QuestionModel.findByIdAndUpdate(questionId, req.body, { new: true });
 
     if (!question) {
       throw new ApiError(404, 'Question not found');
@@ -237,14 +245,6 @@ export const updateQuestionById = asyncHandler(
 
     res
       .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          { question },
-          'Private Job post updated successfully'
-        )
-      );
+      .json(new ApiResponse(200, { question }, 'Question updated successfully'));
   }
 );
-
-

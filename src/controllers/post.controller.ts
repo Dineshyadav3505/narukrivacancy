@@ -3,7 +3,18 @@ import { ApiError } from '../utils/apiError';
 import { asyncHandler } from '../utils/asyncHandler.utils';
 import { JobPost } from '../Models/post.model';
 import { ApiResponse } from '../utils/apiResponse.utils';
-import { userInterface } from '../Models/user.model';
+import { userInfo } from 'os';
+
+// Define Caches
+let cachedJobPosts: any[] = [];
+let cachedJobPostsByState: { [key: string]: any[] } = {};
+let cachedJobPostsByAdmitCardLink: any[] = [];
+let cachedJobPostsByResultLink: any[] = [];
+let cachedJobPostsByAnswerKeyLink: any[] = [];
+let cachedJobPostsByAdmissionLink: any[] = [];
+let cachedJobPostsByApplyLink: any[] = [];
+let cacheTimestamp = 0;
+const CACHE_TTL = 60 * 1000;
 
 declare global {
   namespace Express {
@@ -13,13 +24,21 @@ declare global {
   }
 }
 
-// const AllJobPosts = [];
-// const AllJobPostsByState = [];
-// const AllJobPostsByAdmitCardLink = [];
-// const AllJobPostsByResultLink = [];
-// const AllJobPostsByAnswerKeyLink = [];
-// const AllJobPostsByAdmissionLink = [];
-// const AllJobPostsByApplyLink = [];
+// Cache Helper Functions
+function clearAllCaches() {
+  cachedJobPosts = [];
+  cachedJobPostsByState = {};
+  cachedJobPostsByAdmitCardLink = [];
+  cachedJobPostsByResultLink = [];
+  cachedJobPostsByAnswerKeyLink = [];
+  cachedJobPostsByAdmissionLink = [];
+  cachedJobPostsByApplyLink = [];
+  cacheTimestamp = 0;
+}
+
+function isCacheValid() {
+  return Date.now() - cacheTimestamp < CACHE_TTL;
+}
 
 export const createJobPost = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -90,9 +109,9 @@ export const createJobPost = asyncHandler(
       ageLimit,
       resultLink,
       admitCardLink,
+      applyLink,
       answerKeyLink,
       admissionLink,
-      applyLink,
       informationSections,
       state,
       beginDate: parsedBeginDate,
@@ -100,28 +119,52 @@ export const createJobPost = asyncHandler(
       totalPost,
     });
 
-    await jobPost
-      .save()
-      .then(() => {
-        res
-          .status(201)
-          .json(
-            new ApiResponse(201, { jobPost }, 'Job post created successfully')
-          );
-      })
-      .catch(error => {
-        res.status(500).json(new ApiError(500, error));
-      });
+    await jobPost.save();
+    clearAllCaches(); // Clear cache
+
+    res
+      .status(201)
+      .json(new ApiResponse(201, { jobPost }, 'Job post created successfully'));
   }
 );
+
 
 export const getAllJobPosts = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const searchQuery = req.query.searchQuery as string | undefined;
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
+    const limit = parseInt(req.query.limit as string) || 18;
     const skip = (page - 1) * limit;
 
+    // Use cache if available and valid
+    if (cachedJobPosts.length > 0 && isCacheValid()) {
+      let filteredPosts = cachedJobPosts;
+      if (searchQuery) {
+        const regex = new RegExp(searchQuery, 'i');
+        filteredPosts = filteredPosts.filter(
+          post =>
+            regex.test(post.postName) ||
+            regex.test(post.description) ||
+            regex.test(post.state)
+        );
+      }
+      const paginatedPosts = filteredPosts.slice(skip, skip + limit);
+      res.status(200).json(
+        new ApiResponse(
+          200,
+          {
+            jobPosts: paginatedPosts,
+            total: filteredPosts.length,
+            page,
+            pageCount: Math.ceil(filteredPosts.length / limit),
+          },
+          'Job posts fetched successfully'
+        )
+      );
+      return;
+    }
+
+    // If no cache, fetch from DB
     let filter: any = {
       admissionLink: {
         $elemMatch: { link: '' },
@@ -143,6 +186,12 @@ export const getAllJobPosts = asyncHandler(
       .limit(limit)
       .sort({ createdAt: -1 });
 
+    // Cache the result
+    if (!searchQuery && page === 1) {
+      cachedJobPosts = await JobPost.find(filter).sort({ createdAt: -1 });
+      cacheTimestamp = Date.now();
+    }
+
     res.status(200).json(
       new ApiResponse(
         200,
@@ -159,20 +208,23 @@ export const getAllJobPosts = asyncHandler(
 );
 
 export const deleteJobPostById = asyncHandler(
-  async (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user) {
-      throw new ApiError(401, 'User not authenticated');
+  async (req: Request, res: Response, next: NextFunction) => {     
+    // Authentication
+     if (!req.user || req.user.role !== 'admin') {
+      throw new ApiError(
+        req.user ? 403 : 401,
+        req.user ? 'Forbidden: Admin access required' : 'Unauthorized access'
+      );
     }
+    const jobPostId = req.params.Id;
 
-    if (req.user.role !== 'admin') {
-      throw new ApiError(403, 'You are not authorized to delete a job post.');
-    }
-
-    const jobPostId = req.params.id;
     const jobPost = await JobPost.findByIdAndDelete(jobPostId);
+
     if (!jobPost) {
       throw new ApiError(404, 'Job post not found');
     }
+
+    clearAllCaches(); // Clear cache
 
     res
       .status(200)
@@ -185,8 +237,34 @@ export const getJobPostByState = asyncHandler(
     const stateName = req.query.state as string | undefined;
     const postName = req.query.searchQuery as string | undefined;
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
+    const limit = parseInt(req.query.limit as string) || 18;
     const skip = (page - 1) * limit;
+
+    // Use cache if available and valid
+    if (
+      cachedJobPostsByState[stateName || 'all']?.length > 0 &&
+      isCacheValid()
+    ) {
+      let cachedPosts = cachedJobPostsByState[stateName || 'all'];
+      if (postName) {
+        const regex = new RegExp(postName, 'i');
+        cachedPosts = cachedPosts.filter(post => regex.test(post.postName));
+      }
+      const paginatedPosts = cachedPosts.slice(skip, skip + limit);
+      res.status(200).json(
+        new ApiResponse(
+          200,
+          {
+            jobPosts: paginatedPosts,
+            total: cachedPosts.length,
+            page,
+            pageCount: Math.ceil(cachedPosts.length / limit),
+          },
+          'Job posts fetched successfully'
+        )
+      );
+      return;
+    }
 
     // Build filter object
     const filter: any = { state: { $exists: true, $ne: '' } };
@@ -209,6 +287,16 @@ export const getJobPostByState = asyncHandler(
       throw new ApiError(404, 'No job posts found for this filter');
     }
 
+    // Cache the result
+    if (page === 1) {
+      cachedJobPostsByState[stateName || 'all'] = await JobPost.find(
+        filter
+      ).sort({
+        createdAt: -1,
+      });
+      cacheTimestamp = Date.now();
+    }
+
     res.status(200).json(
       new ApiResponse(
         200,
@@ -228,8 +316,31 @@ export const getJobPostByAdmitCardLink = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const postName = req.query.searchQuery as string | undefined;
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
+    const limit = parseInt(req.query.limit as string) || 18;
     const skip = (page - 1) * limit;
+
+    // Use cache if available and valid
+    if (cachedJobPostsByAdmitCardLink.length > 0 && isCacheValid()) {
+      let filteredPosts = cachedJobPostsByAdmitCardLink;
+      if (postName) {
+        const regex = new RegExp(postName, 'i');
+        filteredPosts = filteredPosts.filter(post => regex.test(post.postName));
+      }
+      const paginatedPosts = filteredPosts.slice(skip, skip + limit);
+      res.status(200).json(
+        new ApiResponse(
+          200,
+          {
+            jobPosts: paginatedPosts,
+            total: filteredPosts.length,
+            page,
+            pageCount: Math.ceil(filteredPosts.length / limit),
+          },
+          'Job posts fetched successfully '
+        )
+      );
+      return;
+    }
 
     // If admitCardLink is an array of objects with a 'link' field:
     const filter: any = {
@@ -257,6 +368,14 @@ export const getJobPostByAdmitCardLink = asyncHandler(
       );
     }
 
+    // Cache the result
+    if (!postName && page === 1) {
+      cachedJobPostsByAdmitCardLink = await JobPost.find(filter).sort({
+        createdAt: -1,
+      });
+      cacheTimestamp = Date.now();
+    }
+
     res.status(200).json(
       new ApiResponse(
         200,
@@ -277,8 +396,31 @@ export const getJobPostByResultLink = asyncHandler(
     // Pagination params
     const postName = req.query.searchQuery as string | undefined;
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
+    const limit = parseInt(req.query.limit as string) || 18;
     const skip = (page - 1) * limit;
+
+    // Use cache if available and valid
+    if (cachedJobPostsByResultLink.length > 0 && isCacheValid()) {
+      let filteredPosts = cachedJobPostsByResultLink;
+      if (postName) {
+        const regex = new RegExp(postName, 'i');
+        filteredPosts = filteredPosts.filter(post => regex.test(post.postName));
+      }
+      const paginatedPosts = filteredPosts.slice(skip, skip + limit);
+      res.status(200).json(
+        new ApiResponse(
+          200,
+          {
+            jobPosts: paginatedPosts,
+            total: filteredPosts.length,
+            page,
+            pageCount: Math.ceil(filteredPosts.length / limit),
+          },
+          'Job posts fetched successfully '
+        )
+      );
+      return;
+    }
 
     // Find jobs with the specific resultLink
     const filter = {
@@ -287,10 +429,8 @@ export const getJobPostByResultLink = asyncHandler(
       },
     };
 
-    // Get total count for pagination info
     const total = await JobPost.countDocuments(filter);
 
-    // Get paginated jobs
     const jobPosts = await JobPost.find(filter)
       .skip(skip)
       .limit(limit)
@@ -298,6 +438,14 @@ export const getJobPostByResultLink = asyncHandler(
 
     if (!jobPosts || jobPosts.length === 0) {
       throw new ApiError(404, 'No job posts found for this result link');
+    }
+
+    // Cache the result
+    if (!postName && page === 1) {
+      cachedJobPostsByResultLink = await JobPost.find(filter).sort({
+        createdAt: -1,
+      });
+      cacheTimestamp = Date.now();
     }
 
     res.status(200).json(
@@ -320,8 +468,31 @@ export const getJobPostByAnswerKeyLink = asyncHandler(
     // Pagination params
     const postName = req.query.searchQuery as string | undefined;
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
+    const limit = parseInt(req.query.limit as string) || 18;
     const skip = (page - 1) * limit;
+
+    // Use cache if available and valid
+    if (cachedJobPostsByAnswerKeyLink.length > 0 && isCacheValid()) {
+      let filteredPosts = cachedJobPostsByAnswerKeyLink;
+      if (postName) {
+        const regex = new RegExp(postName, 'i');
+        filteredPosts = filteredPosts.filter(post => regex.test(post.postName));
+      }
+      const paginatedPosts = filteredPosts.slice(skip, skip + limit);
+      res.status(200).json(
+        new ApiResponse(
+          200,
+          {
+            jobPosts: paginatedPosts,
+            total: filteredPosts.length,
+            page,
+            pageCount: Math.ceil(filteredPosts.length / limit),
+          },
+          'Job posts fetched successfully '
+        )
+      );
+      return;
+    }
 
     // Find jobs with a specific answerKeyLink
     const filter = {
@@ -343,6 +514,15 @@ export const getJobPostByAnswerKeyLink = asyncHandler(
         'No AnswerKey posts found for this answer key link'
       );
     }
+
+    // Cache the result
+    if (!postName && page === 1) {
+      cachedJobPostsByAnswerKeyLink = await JobPost.find(filter).sort({
+        createdAt: -1,
+      });
+      cacheTimestamp = Date.now();
+    }
+
     res.status(200).json(
       new ApiResponse(
         200,
@@ -364,8 +544,33 @@ export const getJobPostByAdmissionLink = asyncHandler(
     const postName = req.query.searchQuery as string | undefined;
     const searchQuery = req.query.searchQuery as string | undefined;
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
+    const limit = parseInt(req.query.limit as string) || 18;
     const skip = (page - 1) * limit;
+
+    // Use cache if available and valid
+    if (cachedJobPostsByAdmissionLink.length > 0 && isCacheValid()) {
+      let filteredPosts = cachedJobPostsByAdmissionLink;
+      if (searchQuery) {
+        const regex = new RegExp(searchQuery, 'i');
+        filteredPosts = filteredPosts.filter(
+          post => regex.test(post.postName) || regex.test(post.description)
+        );
+      }
+      const paginatedPosts = filteredPosts.slice(skip, skip + limit);
+      res.status(200).json(
+        new ApiResponse(
+          200,
+          {
+            jobPosts: paginatedPosts,
+            total: filteredPosts.length,
+            page,
+            pageCount: Math.ceil(filteredPosts.length / limit),
+          },
+          'Job posts fetched successfully '
+        )
+      );
+      return;
+    }
 
     // Build filter
     let filter: any = {
@@ -393,12 +598,19 @@ export const getJobPostByAdmissionLink = asyncHandler(
       .limit(limit)
       .sort({ createdAt: -1 });
 
-    // Or keep your error throw:
     if (!jobPosts || jobPosts.length === 0) {
       throw new ApiError(
         404,
         'No AdmissionLink posts found for this admission link'
       );
+    }
+
+    // Cache the result
+    if (!searchQuery && page === 1) {
+      cachedJobPostsByAdmissionLink = await JobPost.find(filter).sort({
+        createdAt: -1,
+      });
+      cacheTimestamp = Date.now();
     }
 
     res.status(200).json(
@@ -419,10 +631,35 @@ export const getJobPostByAdmissionLink = asyncHandler(
 export const getJobPostByApplyLink = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     // Pagination params
-    const postName = req.query.searchQuery as string | undefined;
+    const postName = req.query.postName as string | undefined;
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
+    const limit = parseInt(req.query.limit as string) || 18;
     const skip = (page - 1) * limit;
+
+    console.log('Post Name:', postName);
+
+    // Use cache if available and valid
+    if (cachedJobPostsByApplyLink.length > 0 && isCacheValid()) {
+      let filteredPosts = cachedJobPostsByApplyLink;
+      if (postName) {
+        const regex = new RegExp(postName, 'i');
+        filteredPosts = filteredPosts.filter(post => regex.test(post.postName));
+      }
+      const paginatedPosts = filteredPosts.slice(skip, skip + limit);
+      res.status(200).json(
+        new ApiResponse(
+          200,
+          {
+            jobPosts: paginatedPosts,
+            total: filteredPosts.length,
+            page,
+            pageCount: Math.ceil(filteredPosts.length / limit),
+          },
+          'Job posts fetched successfully '
+        )
+      );
+      return;
+    }
 
     // Find jobs with the specific applyLink
     const filter = {
@@ -441,6 +678,15 @@ export const getJobPostByApplyLink = asyncHandler(
     if (!jobPosts || jobPosts.length === 0) {
       throw new ApiError(404, 'No ApplyLink posts found for this apply link');
     }
+
+    // Cache the result
+    if (!postName && page === 1) {
+      cachedJobPostsByApplyLink = await JobPost.find(filter).sort({
+        createdAt: -1,
+      });
+      cacheTimestamp = Date.now();
+    }
+
     res.status(200).json(
       new ApiResponse(
         200,
@@ -515,15 +761,15 @@ export const getJobPostById = asyncHandler(
 
 export const updateJobPostById = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user) {
-      throw new ApiError(401, 'User not authenticated');
+    // Authentication
+    if (!req.user || req.user.role !== 'admin') {
+      throw new ApiError(
+        req.user ? 403 : 401,
+        req.user ? 'Forbidden: Admin access required' : 'Unauthorized access'
+      );
     }
 
-    if (req.user.role !== 'admin') {
-      throw new ApiError(403, 'You are not authorized to update a job post.');
-    }
-
-    const jobPostId = req.params.id;
+    // Destructure body fields
     const {
       postName,
       description,
@@ -540,36 +786,104 @@ export const updateJobPostById = asyncHandler(
       beginDate,
       lastDate,
       totalPost,
+      informationSections,
     } = req.body;
 
-    const jobPost = await JobPost.findByIdAndUpdate(
+    // Required fields validation
+    const requiredFields = [
+      'postName',
+      'description',
+      'notificationLink',
+      'importantDates',
+      'applicationFee',
+      'ageLimit',
+      'beginDate',
+    ];
+
+    for (const field of requiredFields) {
+      const value = req.body[field];
+      if (
+        value === undefined ||
+        value === null ||
+        (typeof value === 'string' && value.trim() === '')
+      ) {
+        throw new ApiError(
+          400,
+          `${field.charAt(0).toUpperCase() + field.slice(1)} is required`
+        );
+      }
+    }
+
+    // Construct update data
+    const updateData = {
+      postName,
+      description,
+      notificationLink,
+      importantDates,
+      applicationFee,
+      ageLimit,
+      resultLink,
+      admitCardLink,
+      applyLink,
+      answerKeyLink,
+      admissionLink,
+      state,
+      beginDate,
+      lastDate,
+      totalPost,
+      informationSections,
+    };
+
+    // Job post ID from request params
+    const jobPostId = req.params.Id;
+
+    const updatedJobPost = await JobPost.findByIdAndUpdate(
       jobPostId,
+      updateData,
       {
-        postName,
-        description,
-        notificationLink,
-        importantDates,
-        applicationFee,
-        ageLimit,
-        resultLink,
-        admitCardLink,
-        applyLink,
-        answerKeyLink,
-        admissionLink,
-        state,
-        beginDate,
-        lastDate,
-        totalPost,
-      },
-      { new: true }
+        new: true,
+      }
     );
 
-    if (!jobPost) {
+    if (!updatedJobPost) {
       throw new ApiError(404, 'Job post not found');
     }
 
+    clearAllCaches(); // Clear cache
+
     res
       .status(200)
-      .json(new ApiResponse(200, { jobPost }, 'Job post updated successfully'));
+      .json(
+        new ApiResponse(
+          200,
+          { updatedJobPost },
+          'Job post updated successfully'
+        )
+      );
+  }
+);
+
+export const getJobPostByName = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const postName = (req.params.postName as string).replace(/%/g, " ");
+
+    // If no cache, fetch from DB
+    let filter: any = { postName: { $exists: true } };
+    if (postName) {
+      filter.postName = postName;
+    }
+
+    const total = await JobPost.countDocuments(filter);
+    const jobPosts = await JobPost.find(filter)
+
+    res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          jobPosts,
+        },
+        'Job posts fetched successfully'
+      )
+    );
   }
 );

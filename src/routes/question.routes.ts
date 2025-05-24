@@ -9,8 +9,8 @@ export const questionRouter = Router();
 questionRouter.post('/create', verifyJWT, createQuestion)
 questionRouter.get('/random', getRandomQuestion)
 questionRouter.get('/allQuestion', getAllQuestion)
-questionRouter.delete('/:Id', deletedQuestionById)
-questionRouter.put('/:Id', updateQuestionById)
+questionRouter.delete('/:Id', verifyJWT, deletedQuestionById)
+questionRouter.put('/:Id',verifyJWT, updateQuestionById)
 
 
 

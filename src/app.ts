@@ -9,6 +9,7 @@ import { privateJobRouter } from "./routes/privateJob.route";
 import { offlinePostRouter } from "./routes/offline.route";
 import { questionRouter } from "./routes/question.routes";
 import { notesRouter } from "./routes/notes.route";
+import { paymentRouter } from "./routes/payment.route";
 
 
 
@@ -41,6 +42,7 @@ app.use("/api/v1/privateJob", privateJobRouter);
 app.use("/api/v1/offlineJob", offlinePostRouter);
 app.use("/api/v1/notes", notesRouter);
 app.use("/api/v1/question", questionRouter)
+app.use("/api/v1/payment", paymentRouter)
 
 
 export {app}; 

@@ -18,7 +18,6 @@ export const createQuiz = asyncHandler(async (req: Request, res: Response) => {
   const {
     title,
     description,
-    date,
     totalQuestions,
     winningAmount,
     price,
@@ -32,7 +31,6 @@ export const createQuiz = asyncHandler(async (req: Request, res: Response) => {
   const requiredFields = [
     'title',
     'description',
-    'date',
     'totalQuestions',
     'winningAmount',
     'price',
@@ -54,7 +52,6 @@ export const createQuiz = asyncHandler(async (req: Request, res: Response) => {
     }
   }
 
-
   const validCategory = ['Free', 'Quizzes', 'Mock'];
   if (category && !validCategory.includes(category)) {
     throw new ApiError(400, 'category must be Free, Quizzes or Mock');
@@ -64,7 +61,6 @@ export const createQuiz = asyncHandler(async (req: Request, res: Response) => {
   const quizData: any = {
     title,
     description,
-    date,
     totalQuestions,
     winningAmount,
     price,
@@ -114,19 +110,18 @@ export const getActiveQuizzes = asyncHandler(
     const skip = (page - 1) * limit;
 
     const quizzes = await Quizzes.find({
-      expireDateTime: { $gte: new Date() }
+      expireDateTime: { $gte: new Date() },
     })
-    .skip(skip)
-    .limit(limit)
-    .sort({ createdAt: -1 });
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
 
     if (!quizzes) {
       throw new ApiError(404, 'Quizzes not found');
     }
     res
-    .status(200)
-    .json(new ApiResponse(200, { quizzes }, 'Quizzes fetched successfully'));
-
+      .status(200)
+      .json(new ApiResponse(200, { quizzes }, 'Quizzes fetched successfully'));
   }
 );
 
@@ -183,76 +178,56 @@ export const getQuizById = asyncHandler(async (req: Request, res: Response) => {
 
 export const updateQuizById = asyncHandler(
   async (req: Request, res: Response) => {
-    const quizId = req.params.id;
-
-    // Authentication check
-    if (!req.user) {
-      throw new ApiError(401, 'User not authenticated');
+    // Authentication
+    if (!req.user || req.user.role !== 'admin') {
+      throw new ApiError(
+        req.user ? 403 : 401,
+        req.user ? 'Forbidden: Admin access required' : 'Unauthorized access'
+      );
     }
 
-    // Authorization check
-    if (req.user.role !== 'admin') {
-      throw new ApiError(403, 'You are not authorized to edit quizzes.');
-    }
+    // Destructure fields from the request body
+    const {
+      title,
+      description,
+      totalQuestions,
+      winningAmount,
+      price,
+      durationMinutes,
+      category,
+      startDateTime,
+      expireDateTime,
+    } = req.body;
 
     // Find quiz
+    const quizId = req.params.Id;
     const quiz = await Quizzes.findById(quizId);
     if (!quiz) {
       throw new ApiError(404, 'Quiz not found');
     }
 
-    // Prepare update object
-    const updateFields: any = {};
-    const updatableFields = [
-      'quizName',
-      'image',
-      'description',
-      'questions',
-      'numberOfQuestions',
-      'active',
-      'topPrize',
-    ];
-
-    for (const field of updatableFields) {
-      if (field in req.body) {
-        updateFields[field] = req.body[field];
-      }
+    const validCategory = ['Free', 'Quizzes', 'Mock'];
+    if (category && !validCategory.includes(category)) {
+      throw new ApiError(400, 'category must be Free, Quizzes or Mock');
     }
 
-    // Parse/validate fields as needed
-    if ('active' in updateFields && typeof updateFields.active === 'string') {
-      updateFields.active = updateFields.active.toLowerCase() === 'true';
-    }
-    if (
-      'numberOfQuestions' in updateFields &&
-      typeof updateFields.numberOfQuestions === 'string'
-    ) {
-      updateFields.numberOfQuestions = parseInt(
-        updateFields.numberOfQuestions,
-        10
-      );
-    }
-    if (
-      'topPrize' in updateFields &&
-      typeof updateFields.topPrize === 'string'
-    ) {
-      updateFields.topPrize = parseFloat(updateFields.topPrize);
-    }
-    if (
-      'questions' in updateFields &&
-      typeof updateFields.questions === 'string'
-    ) {
-      try {
-        updateFields.questions = JSON.parse(updateFields.questions);
-      } catch {
-        throw new ApiError(400, 'Questions must be a valid JSON array');
-      }
-    }
+    // Prepare the quiz data
+    const quizData: any = {
+      title,
+      description,
+      totalQuestions,
+      winningAmount,
+      price,
+      durationMinutes,
+      category: category || 'Free',
+    };
 
-    // Optionally: Validate questions structure here (see previous answers)
+    // Optionally add startDateTime and expireDateTime if provided
+    if (startDateTime) quizData.startDateTime = startDateTime;
+    if (expireDateTime) quizData.expireDateTime = expireDateTime;
 
     // Update quiz
-    const updatedQuiz = await Quizzes.findByIdAndUpdate(quizId, updateFields, {
+    const updatedQuiz = await Quizzes.findByIdAndUpdate(quizId, quizData, {
       new: true,
       runValidators: true,
     });
@@ -284,3 +259,54 @@ export const deleteQuizById = asyncHandler(
       .json(new ApiResponse(200, { quiz }, 'Quiz deleted successfully'));
   }
 );
+
+
+export const submitQuiz = asyncHandler(async (req: Request, res: Response) => {
+  const quizId = req.params.id || req.params.Id; // Support both 'id' and 'Id'
+  const { answers } = req.body; // answers: [{ questionId: string, selectedOption: string }]
+
+  console.log(quizId)
+
+  if (!Array.isArray(answers) || answers.length === 0) {
+    throw new ApiError(400, 'Answers are required');
+  }
+
+  // Fetch the quiz to ensure it exists
+  const quiz = await Quizzes.findById(quizId);
+  if (!quiz) {
+    throw new ApiError(404, 'Quiz not found');
+  }
+
+  // Fetch all relevant questions
+  const questionIds = answers.map(a => a.questionId);
+  const questions = await QuestionModel.find({ _id: { $in: questionIds } });
+
+  if (questions.length !== answers.length) {
+    throw new ApiError(400, 'Some questions are invalid');
+  }
+
+  // Calculate score
+  let score = 0;
+  const detailedResults = questions.map(q => {
+    const userAnswer = answers.find(a => a.questionId === (q._id as string).toString());
+    const isCorrect = userAnswer && userAnswer.selectedOption === q.options[q.correctOption];
+    if (isCorrect) score += 1;
+    return {
+      questionId: q._id,
+      isCorrect,
+      correctAnswer: q.options[q.correctOption],
+      userAnswer: userAnswer ? userAnswer.selectedOption : null,
+    };
+  });
+
+  // Optionally, save the result to a database here
+
+  res.status(200).json(
+    new ApiResponse(200, {
+      quizId,
+      score,
+      totalQuestions: questions.length,
+      details: detailedResults,
+    }, 'Quiz submitted successfully')
+  );
+});

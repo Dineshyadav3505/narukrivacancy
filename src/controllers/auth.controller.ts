@@ -174,9 +174,9 @@ export const sendVerificationCode = asyncHandler(
     // }
 
     const recipientEmail = email;
-    const subject = 'Your One Time Password (OTP) from Naukri Vacancy';
+    const subject = 'One Time Password (OTP) from NAUKRI VACANCY';
     
-    const text = `Dear Customer,
+    const text = `Dear Candidate,
     
     Your one time password (OTP) is: ${verificationCode}
     
@@ -186,7 +186,7 @@ export const sendVerificationCode = asyncHandler(
     Team Naukri Vacancy`;
     
     const html = `
-      <p>Dear Customer,</p>
+      <p>Dear Candidate,</p>
       <p>Your one time password (OTP) is: <b>${verificationCode}</b></p>
       <p>Please do not share this OTP with anyone for security reasons.</p>
       <br>

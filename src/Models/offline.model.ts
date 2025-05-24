@@ -7,6 +7,7 @@ export interface OfflinePostInterface {
   ageLimit: string;
   lastDate:Date;
   details: string;
+  price: number;
   link:string;
 }
 
@@ -40,6 +41,10 @@ export const OfflinePostSchema = new Schema<OfflinePostInterface>(
       type: String,
       required: true,
       trim: true,
+    },
+    price: {
+      type: Number,
+      required: true,
     },
     link:{
       type: String,

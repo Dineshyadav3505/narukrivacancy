@@ -3,10 +3,9 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface QuizzesInterface extends Document {
   title: string;
   description: string;
-  date: Date;
   totalQuestions: number;
-  winningAmount: number | string;
-  price: number | string;
+  winningAmount: string;
+  price:  string;
   durationMinutes: number;
   category: string;
   startDateTime: Date;
@@ -23,21 +22,16 @@ const quizzesSchema = new Schema<QuizzesInterface>(
       type: String,
       required: true,
     },
-    date: {
-      type: Date,
-      default: Date.now,
-      required: true,
-    },
     totalQuestions: {
       type: Number,
       required: true,
     },
     winningAmount: {
-      type: Schema.Types.Mixed,
+      type: String,
       required: true,
     },
     price: {
-      type: Schema.Types.Mixed,
+      type: String,
       required: true,
     },
     durationMinutes: {

@@ -6,6 +6,7 @@ import { ApiResponse } from '../utils/apiResponse.utils';
 
 // CREATE
 export const createNotes = asyncHandler(async (req: Request, res: Response) => {
+  console.log("Creating a new Notes post...");
   // Authentication
   if (!req.user || req.user.role !== 'admin') {
     throw new ApiError(
@@ -51,14 +52,14 @@ export const createNotes = asyncHandler(async (req: Request, res: Response) => {
           new ApiResponse(
             201,
             { newJobPost },
-            'Offline Job post created successfully'
+            'Notes created successfully'
           )
         );
     })
     .catch((error: Error) => {
       res
         .status(500)
-        .json(new ApiError(500, 'Failed to create Offline Job post'))
+        .json(new ApiError(500, 'Failed to create Notes'))
     });
 });
 
@@ -114,17 +115,44 @@ export const getNotesById = asyncHandler(
 // UPDATE BY ID
 export const updateNotesById = asyncHandler(
   async (req: Request, res: Response) => {
+
     if (!req.user) throw new ApiError(401, 'User not authenticated');
     if (req.user.role !== 'admin')
       throw new ApiError(403, 'You are not authorized to update this post.');
 
-    const { id } = req.params;
+    const id = req.params.Id;
     const note = await NotesModel.findById(id);
     if (!note) throw new ApiError(404, 'Notes not found');
 
-    const updatedNote = await NotesModel.findByIdAndUpdate(id, req.body, {
-      new: true,
-    });
+    const { title, description, details, link, price } = req.body;
+
+    // Required fields validation
+    const requiredFields = ['title', 'description', 'details', 'link', 'price'];
+  
+    for (const field of requiredFields) {
+      const value = req.body[field];
+      if (
+        value === undefined ||
+        value === null ||
+        (typeof value === 'string' && value.trim() === '')
+      ) {
+        throw new ApiError(
+          400,
+          `${field.charAt(0).toUpperCase() + field.slice(1)} is required`
+        );
+      }
+    }
+
+    const updatedNote = await NotesModel.findByIdAndUpdate(id, {
+      title,
+      description,
+      details,
+      link,
+      price,
+    }, { new: true });
+
+    if (!updatedNote) throw new ApiError(500, 'Failed to update note');
+
     res
       .status(200)
       .json(
@@ -140,7 +168,7 @@ export const deleteNotesById = asyncHandler(
     if (req.user.role !== 'admin')
       throw new ApiError(403, 'You are not authorized to delete this post.');
 
-    const { id } = req.params;
+    const id = req.params.id;
     const deletedNote = await NotesModel.findByIdAndDelete(id);
     if (!deletedNote) throw new ApiError(404, 'Notes not found');
 

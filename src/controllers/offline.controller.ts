@@ -7,13 +7,11 @@ import { ApiResponse } from '../utils/apiResponse.utils';
 export const createOfflineJob = asyncHandler(
   async (req: Request, res: Response) => {
     // Authentication
-    if (!req.user) {
-      throw new ApiError(401, 'User not authenticated');
-    }
-
-    // Authorization
-    if (req.user.role !== 'admin') {
-      throw new ApiError(403, 'You are not authorized to create a job post.');
+    if (!req.user || req.user.role !== 'admin') {
+      throw new ApiError(
+        req.user ? 403 : 401,
+        req.user ? 'Forbidden: Admin access required' : 'Unauthorized access'
+      );
     }
 
     // Destructure body fields
@@ -24,6 +22,7 @@ export const createOfflineJob = asyncHandler(
       ageLimit,
       lastDate,
       details,
+      price,
       link,
     } = req.body;
 
@@ -35,6 +34,7 @@ export const createOfflineJob = asyncHandler(
       'ageLimit',
       'lastDate',
       'details',
+      'price',
       'link',
     ];
 
@@ -60,6 +60,7 @@ export const createOfflineJob = asyncHandler(
       ageLimit,
       lastDate,
       details,
+      price,
       link,
     });
 
@@ -140,20 +141,15 @@ export const getOfflineJobById = asyncHandler(
 export const updateOfflineJobById = asyncHandler(
   async (req: Request, res: Response) => {
     // Authentication
-    if (!req.user) {
-      throw new ApiError(401, 'User not authenticated');
-    }
-
-    // Authorization
-    if (req.user.role !== 'admin') {
+    if (!req.user || req.user.role !== 'admin') {
       throw new ApiError(
-        403,
-        'You are not authorized to update this job post.'
+        req.user ? 403 : 401,
+        req.user ? 'Forbidden: Admin access required' : 'Unauthorized access'
       );
     }
 
     // Fetch offline job post by ID
-    const { id } = req.params;
+    const id = req.params.Id;
     const offlineJob = await OfflinePostModel.findById(id);
 
     if (!offlineJob) {
@@ -167,28 +163,21 @@ export const updateOfflineJobById = asyncHandler(
       { new: true }
     );
 
-    res.status(200).json(new ApiResponse(200, { updatedJobPost }));
+    res.status(200).json(new ApiResponse(200, { updatedJobPost },"Offline form updated successfully"));
   }
 );
 
 export const deleteOfflineJobById = asyncHandler(
   async (req: Request, res: Response) => {
     // Authentication
-    if (!req.user) {
-      throw new ApiError(401, 'User not authenticated');
-    }
-
-    // Authorization
-    if (req.user.role !== 'admin') {
+    if (!req.user || req.user.role !== 'admin') {
       throw new ApiError(
-        403,
-        'You are not authorized to delete this job post.'
+        req.user ? 403 : 401,
+        req.user ? 'Forbidden: Admin access required' : 'Unauthorized access'
       );
     }
-
-    // Fetch offline job post by ID
-    const { id } = req.params;
-    const offlineJob = await OfflinePostModel.findByIdAndDelete(id);
+    const jobPostId = req.params.Id;
+    const offlineJob = await OfflinePostModel.findByIdAndDelete(jobPostId);
 
     if (!offlineJob) {
       throw new ApiError(404, 'Offline job post not found');

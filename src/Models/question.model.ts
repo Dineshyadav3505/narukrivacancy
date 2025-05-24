@@ -4,6 +4,7 @@ export interface questionInterface extends Document {
   questionName: string;
   options: string[];
   correctOption: number;
+  explanation: string;
   level: string;
   marks: number;
   negativeMarks: number;
@@ -31,6 +32,10 @@ const questionSchema = new Schema<questionInterface>(
       required: true,
       min: 0,
       max: 3,
+    },
+    explanation: {
+      type: String,
+      required: true,
     },
     level: {
       type: String,
