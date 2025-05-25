@@ -718,6 +718,15 @@ export const getJobWithoutApplyLink = asyncHandler(
       admissionLink: {
         $elemMatch: { link: '' },
       },
+      resultLink: {
+        $elemMatch: { link: '' },
+      },
+      admitCardLink: {
+        $elemMatch: { link: '' },
+      },
+      answerKeyLink: {
+        $elemMatch: { link: '' },
+      },
     };
 
     const total = await JobPost.countDocuments(filter);
