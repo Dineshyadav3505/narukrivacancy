@@ -93,6 +93,7 @@ export const getQuizzes = asyncHandler(async (req: Request, res: Response) => {
     .skip(skip)
     .limit(limit)
     .sort({ createdAt: -1 });
+  
 
   if (!quizzes) {
     throw new ApiError(404, 'Quizzes not found');
@@ -126,6 +127,7 @@ export const getActiveQuizzes = asyncHandler(
 );
 
 export const getQuizById = asyncHandler(async (req: Request, res: Response) => {
+
   const quizId = req.params.Id;
   const quiz = await Quizzes.findById(quizId);
   if (!quiz) {
@@ -169,10 +171,12 @@ export const getQuizById = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(404, 'No questions found for this category');
   }
 
+
+
   res
     .status(200)
     .json(
-      new ApiResponse(200, { quiz, questions }, 'Quiz fetched successfully')
+      new ApiResponse(200, { quiz, user: req.user, questions }, 'Quiz fetched successfully')
     );
 });
 
@@ -259,7 +263,6 @@ export const deleteQuizById = asyncHandler(
       .json(new ApiResponse(200, { quiz }, 'Quiz deleted successfully'));
   }
 );
-
 
 export const submitQuiz = asyncHandler(async (req: Request, res: Response) => {
   const quizId = req.params.id || req.params.Id; // Support both 'id' and 'Id'

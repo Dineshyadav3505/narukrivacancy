@@ -201,8 +201,9 @@ export const sendVerificationCode = asyncHandler(
     });
     
 
+    // console.log(`Verification code sent to ${email || phone_number}: ${verificationCode}`);
     res
       .status(201)
-      .json(new ApiResponse(201, { email }, 'OTP sent successfully'));
+      .json(new ApiResponse(200, { email }, 'OTP sent successfully'));
   }
 );
