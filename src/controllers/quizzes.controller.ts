@@ -268,7 +268,6 @@ export const submitQuiz = asyncHandler(async (req: Request, res: Response) => {
   const quizId = req.params.id || req.params.Id; // Support both 'id' and 'Id'
   const { answers } = req.body; // answers: [{ questionId: string, selectedOption: string }]
 
-  console.log(quizId)
 
   if (!Array.isArray(answers) || answers.length === 0) {
     throw new ApiError(400, 'Answers are required');

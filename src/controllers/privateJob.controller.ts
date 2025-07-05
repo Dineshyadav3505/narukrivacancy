@@ -149,7 +149,7 @@ export const getAllPrivateJob = asyncHandler(
 
 export const deletePrivateJobPostById = asyncHandler(
   async (req: Request, res: Response) => {
-    console.log(req.params.Id)
+
     // Authentication
     if (!req.user || req.user.role !== 'admin') {
       throw new ApiError(
@@ -159,7 +159,7 @@ export const deletePrivateJobPostById = asyncHandler(
     }
 
     const jobPostId = req.params.Id;
-    console.log(req.params.Id)
+
 
     const jobPost = await PrivateJobModel.findByIdAndDelete(jobPostId);
     if (!jobPost) {

@@ -6,7 +6,6 @@ import { ApiResponse } from '../utils/apiResponse.utils';
 
 // CREATE
 export const createNotes = asyncHandler(async (req: Request, res: Response) => {
-  console.log("Creating a new Notes post...");
   // Authentication
   if (!req.user || req.user.role !== 'admin') {
     throw new ApiError(

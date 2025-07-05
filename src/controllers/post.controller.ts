@@ -636,7 +636,6 @@ export const getJobPostByApplyLink = asyncHandler(
     const limit = parseInt(req.query.limit as string) || 18;
     const skip = (page - 1) * limit;
 
-    console.log('Post Name:', postName);
 
     // Use cache if available and valid
     if (cachedJobPostsByApplyLink.length > 0 && isCacheValid()) {

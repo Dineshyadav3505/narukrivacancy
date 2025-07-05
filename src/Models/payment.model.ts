@@ -8,9 +8,12 @@ export interface paymentInterface {
   created_at: string;
   currency: string;
   receipt: string;
+  transactionId?: string;
+  status?: string;
+  phone?: string;
 }
 
-export const OfflinePostSchema = new Schema<paymentInterface>(
+export const PaymentSchema = new Schema<paymentInterface>(
   {
     id: {
       type: String,
@@ -47,11 +50,23 @@ export const OfflinePostSchema = new Schema<paymentInterface>(
       required: true,
       trim: true,
     },
+    transactionId: {
+      type: String,
+      trim: true,
+    },
+    status: {
+      type: String,
+      trim: true,
+    },
+    phone: {
+      type: String,
+      trim: true,
+    },
   },
   { timestamps: true }
 );
 
 export const PaymentModel = mongoose.model<paymentInterface>(
-  'PaymentModel',
-  OfflinePostSchema
+  'Payment',
+  PaymentSchema
 );

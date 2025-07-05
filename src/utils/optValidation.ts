@@ -56,14 +56,14 @@ export function verifyPhoneCode(phone: string, code: string): boolean {
   return false;
 }
 
-export function cleanupExpiredCodes(): void {
-  const now = Date.now();
-  for (const key in codes) {
-    if (codes[key].expiresAt < now) {
-      delete codes[key];
+  export function cleanupExpiredCodes(): void {
+    const now = Date.now();
+    for (const key in codes) {
+      if (codes[key].expiresAt < now) {
+        delete codes[key];
+      }
     }
   }
-}
 
 // Run cleanup periodically (e.g., every hour)
 setInterval(cleanupExpiredCodes, 60 * 60 * 1000);
